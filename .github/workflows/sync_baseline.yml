@@ -1,0 +1,41 @@
+name: Sync Portfolio Pulse baseline
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout AI branch
+        uses: actions/checkout@v4
+
+      - name: Copy production baseline
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/portfolio-pulse
+          git clone --depth 1 https://github.com/rajesh054/portfolio-pulse.git /tmp/portfolio-pulse
+          rsync -a --delete --exclude='.git/' --exclude='portfolio_pulse/signals/' --exclude='PHASE1_PLAN.md' /tmp/portfolio-pulse/ ./
+
+      - name: Preserve Phase 1 files
+        run: |
+          test -f portfolio_pulse/signals/severity.py
+          test -f portfolio_pulse/signals/anomaly.py
+          test -f portfolio_pulse/signals/relative_strength.py
+          test -f portfolio_pulse/signals/risk.py
+          test -f portfolio_pulse/signals/phase1.py
+
+      - name: Commit baseline sync
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No baseline changes.'
+          else
+            git commit -m 'chore: sync portfolio-pulse production baseline'
+            git push origin HEAD:phase1
+          fi
